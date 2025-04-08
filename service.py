@@ -8,18 +8,23 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import requests
 import json
 import base64
+from tts_service import TextToSpeechService
 
 class PdfToPodcastService:
-    def __init__(self, bedrock_api_base, api_key):
+    def __init__(self, bedrock_api_base, api_key, tts_api_key=None):
         """
         Initialize the PDF to Podcast service.
         
         Args:
             bedrock_api_base: Base URL of the Bedrock API endpoint
             api_key: API key for accessing Bedrock
+            tts_api_key: API key for TTS service (optional)
         """
         self.bedrock_api_base = bedrock_api_base
         self.api_key = api_key
+        #self.tts_api_key = tts_api_key
+        self.tts_api_key = api_key
+        self.tts_service = TextToSpeechService(api_key=tts_api_key)
         
     async def create_podcast(self, pdf_path, output_audio_path):
         """
@@ -143,137 +148,32 @@ Maintain the conversation between Host A and Host B with the formal, objective t
     
     async def _generate_audio(self, text, output_path):
         """
-        Convert the podcast script to audio using Bedrock AI text-to-speech
+        Convert the podcast script to audio using TTS service
         """
         try:
-            # Split text into chunks if it's too long for TTS
-            max_tts_length = 3000  # Adjust based on API limits
-            text_chunks = self._split_for_tts(text, max_tts_length)
-            
-            print(f"API Base URL: {self.bedrock_api_base}")
-            
-            # Try to use a simpler TTS solution if Bedrock's TTS is not working
-            # For this example, we'll use a local text file as a fallback
+            # First, save the text as a fallback
             text_output_path = output_path.replace('.mp3', '.txt')
             with open(text_output_path, 'w') as f:
                 f.write(text)
             
             print(f"Saved podcast script text to {text_output_path}")
-            print("Attempting to generate audio...")
             
-            audio_chunks = []
-            
-            for i, chunk in enumerate(text_chunks):
+            # Check if TTS API key is available before attempting audio generation
+            if self.tts_api_key:
+                print("Attempting to generate audio using external TTS service...")
                 try:
-                    # Call Bedrock API for TTS - try various endpoint formats
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {self.api_key}"
-                    }
-                    
-                    # Try with different model names that might be available
-                    models_to_try = [
-                        "amazon.titan-tts-expressive",
-                        "amazon.titan-tts",
-                        "anthropic.claude-tts"  # If Claude TTS is available
-                    ]
-                    
-                    # Try different payload formats
-                    success = False
-                    
-                    for model in models_to_try:
-                        print(f"Trying TTS with model: {model}")
-                        
-                        # Try standard payload format
-                        payload = {
-                            "model": model,
-                            "input": chunk,
-                            "voice_preset": "male_formal",  # Changed to male_formal
-                            "response_format": "mp3"
-                        }
-                        
-                        # Try different endpoint patterns
-                        endpoints_to_try = [
-                            f"{self.bedrock_api_base}/audio/speech",
-                            f"{self.bedrock_api_base}/bedrock/tts",
-                            f"{self.bedrock_api_base}/tts",
-                            f"{self.bedrock_api_base}/v1/audio/speech",
-                            f"{self.bedrock_api_base}"  # The base URL itself might be the endpoint
-                        ]
-                        
-                        for endpoint in endpoints_to_try:
-                            print(f"Trying endpoint: {endpoint}")
-                            try:
-                                response = requests.post(
-                                    endpoint, 
-                                    headers=headers,
-                                    data=json.dumps(payload),
-                                    timeout=30
-                                )
-                                
-                                print(f"Response status: {response.status_code}")
-                                
-                                if response.status_code == 200:
-                                    # Save audio chunk
-                                    temp_chunk_path = f"{output_path}_chunk_{len(audio_chunks)}.mp3"
-                                    with open(temp_chunk_path, "wb") as f:
-                                        f.write(response.content)
-                                    
-                                    audio_chunks.append(temp_chunk_path)
-                                    success = True
-                                    break
-                                else:
-                                    print(f"Failed with status {response.status_code}: {response.text}")
-                            
-                            except Exception as e:
-                                print(f"Exception with endpoint {endpoint}: {str(e)}")
-                        
-                        if success:
-                            break
-                    
-                    if not success:
-                        # If all attempts fail, create a placeholder text file
-                        print("All TTS attempts failed. Creating placeholder file.")
-                        placeholder_path = f"{output_path}_chunk_{i}.txt"
-                        with open(placeholder_path, "w") as f:
-                            f.write(chunk)
-                        
-                        # For demo purposes, we'll treat this as a "successful" chunk
-                        audio_chunks.append(placeholder_path)
-                
-                except Exception as inner_e:
-                    print(f"Error processing chunk {i}: {str(inner_e)}")
-                    # Continue with next chunk instead of failing completely
-            
-            # Note on placeholder files
-            if audio_chunks and all(chunk.endswith('.txt') for chunk in audio_chunks):
-                print("Warning: Could not generate any audio. Created text files instead.")
-                # Just copy the first text file to the output path
-                import shutil
-                shutil.copy(audio_chunks[0], output_path.replace('.mp3', '.txt'))
-                return output_path.replace('.mp3', '.txt')
-            
-            # Combine audio chunks if needed and they are actually audio files
-            if len(audio_chunks) > 1 and all(chunk.endswith('.mp3') for chunk in audio_chunks):
-                self._combine_audio_files(audio_chunks, output_path)
-                # Clean up temporary files
-                for chunk_path in audio_chunks:
-                    if os.path.exists(chunk_path):
-                        os.remove(chunk_path)
-            elif len(audio_chunks) == 1 and audio_chunks[0].endswith('.mp3'):
-                # Rename single chunk to final output name
-                os.rename(audio_chunks[0], output_path)
+                    return await self.tts_service.generate_audio(text, output_path, voice="alloy")
+                except Exception as tts_error:
+                    print(f"TTS generation failed: {str(tts_error)}")
+                    # Return the text file path instead of the non-existent mp3
+                    return text_output_path
+            else:
+                print("No TTS API key provided, skipping audio generation")
+                return text_output_path
             
         except Exception as e:
-            # Save the script as text at minimum
-            fallback_text_path = output_path.replace('.mp3', '.txt')
-            with open(fallback_text_path, 'w') as f:
-                f.write(text)
-            
-            print(f"Saved text to {fallback_text_path} due to error: {str(e)}")
-            raise Exception(f"Failed to generate audio: {str(e)}")
-            
-        return output_path
+            print(f"Failed to generate audio: {str(e)}")
+            return text_output_path
     
     def _split_for_tts(self, text, max_length):
         """Split text into smaller chunks suitable for TTS processing"""

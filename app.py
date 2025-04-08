@@ -49,10 +49,11 @@ app.openapi = custom_openapi
 os.makedirs("temp/uploads", exist_ok=True)
 os.makedirs("temp/podcasts", exist_ok=True)
 
-# Initialize service with Bedrock API endpoint
+# Initialize service with Bedrock API endpoint and OpenAI API key for TTS
 service = PdfToPodcastService(
     bedrock_api_base="https://hackfest-bedrock-proxy.diligentoneplatform-dev.com/api/v1",
-    api_key="2ega5d1b34c4258c4b03e6c49ae3f9e1"  # Replace with actual API key or use environment variable
+    api_key="2ega5d1b34c4258c4b03e6c49ae3f9e1",
+    tts_api_key=os.environ.get("OPENAI_API_KEY")  # Get from environment variable
 )
 
 @app.post("/convert")
@@ -85,12 +86,25 @@ async def convert_pdf_to_podcast(file: UploadFile = File(...), background_tasks:
         file_size = os.path.getsize(pdf_path)
         
         if file_size < 1024 * 1024:  # If less than 1MB, process immediately
-            await service.create_podcast(pdf_path, audio_path)
-            return FileResponse(
-                audio_path, 
-                media_type="audio/mpeg",
-                filename="podcast.mp3"
-            )
+            output_path = await service.create_podcast(pdf_path, audio_path)
+            
+            # Check if the output is a text file (TTS failed) or an mp3 file
+            if output_path.endswith('.txt'):
+                # Return the text content instead of the non-existent audio file
+                with open(output_path, 'r') as f:
+                    content = f.read()
+                return JSONResponse({
+                    "status": "completed_as_text",
+                    "message": "Audio generation failed, but text transcript is available",
+                    "transcript": content[:1000] + "..." if len(content) > 1000 else content
+                })
+            else:
+                # Return the audio file
+                return FileResponse(
+                    output_path, 
+                    media_type="audio/mpeg",
+                    filename="podcast.mp3"
+                )
         else:
             # For larger files, process in background
             if background_tasks:
@@ -139,6 +153,7 @@ async def check_status(job_id: str):
 async def download_podcast(job_id: str):
     """Download a completed podcast"""
     audio_path = f"temp/podcasts/{job_id}.mp3"
+    text_path = f"temp/podcasts/{job_id}.txt"
     
     if os.path.exists(audio_path):
         return FileResponse(
@@ -146,6 +161,15 @@ async def download_podcast(job_id: str):
             media_type="audio/mpeg",
             filename="podcast.mp3"
         )
+    elif os.path.exists(text_path):
+        # Return the text content if audio is not available
+        with open(text_path, 'r') as f:
+            content = f.read()
+        return JSONResponse({
+            "status": "completed_as_text",
+            "message": "Audio generation failed, but text transcript is available",
+            "transcript": content
+        })
     
     raise HTTPException(status_code=404, detail="Podcast not found")
 
