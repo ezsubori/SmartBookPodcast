@@ -10,6 +10,7 @@ import json
 import base64
 from tts_service import TextToSpeechService
 
+# This is a service that converts PDF files to podcast audio files using Bedrock AI and TTS services.
 class PdfToPodcastService:
     def __init__(self, bedrock_api_base, api_key, tts_api_key=None):
         """
