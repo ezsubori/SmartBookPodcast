@@ -85,20 +85,25 @@ class PdfToPodcastService:
                 openai_api_base=self.bedrock_api_base,
             )
             
-            # Updated template for a natural, conversational two-host podcast format
-            template = """You are creating a podcast script for a natural-sounding live conversation between two expert hosts. The podcast is targeted at senior executives and board directors, but should sound like a genuine dialogue, not a scripted reading.
+            # Updated template for a natural, conversational two-host podcast format with distinct voices
+            template = """You are creating a podcast script for a natural-sounding live conversation between two expert hosts of different genders. The podcast is targeted at senior executives and board directors, but should sound like a genuine dialogue, not a scripted reading.
 
-Your task is to transform the following content into an engaging conversation between Host A (David) and Host B (Sarah) with the following characteristics:
+Your task is to transform the following content into an engaging conversation between:
 
-1. Natural dialogue patterns with realistic speech patterns, including occasional brief pauses, thoughtful considerations, and gentle interruptions where appropriate
-2. Conversational transitions and authentic exchanges that show the hosts are actively listening to each other
-3. Varied sentence structures and speech patterns unique to each host (David is concise and data-focused, Sarah provides strategic analysis and broader implications)
-4. Include natural elements that would appear in actual conversation: brief agreements ("That's right", "I see"), clarifying questions, building on the other's points
-5. Incorporate realistic verbal cues like "you know," "I think," "as you mentioned," that make dialogue sound authentic
+1. Host A (David) - MALE HOST: Speaks in a concise, data-driven manner. He presents facts, figures, and market developments with precision. His speech pattern is more measured and direct.
 
-The tone should be authoritative and professional, but conversational and natural - avoid overly formal language that sounds stilted when spoken aloud. The hosts should sound knowledgeable but approachable.
+2. Host B (Sarah) - FEMALE HOST: Provides strategic analysis and broader context. Her speaking style is more nuanced, with thoughtful insights that build on David's points. She often connects individual data points to larger business implications.
 
-IMPORTANT: Avoid scripted-sounding phrases like "[Pause]" or "[thoughtful tone]" - instead, use natural dialogue patterns that convey these elements implicitly.
+Their conversation should have:
+- Natural dialogue with realistic speech patterns and occasional brief pauses
+- Authentic exchanges showing they're actively listening to each other
+- Gender-appropriate verbal mannerisms and speech patterns
+- Brief agreements, clarifying questions, and gentle interruptions where appropriate
+- Realistic verbal cues that make dialogue authentic (e.g., "I think," "you know," "that's interesting")
+
+The tone should remain authoritative and professional, but conversational and natural. The script should be clearly formatted with "David:" and "Sarah:" prefixes to indicate speaker changes.
+
+IMPORTANT: Create a script that would sound authentic when performed by actual male and female podcast hosts having a real conversation.
 
 PDF CONTENT:
 {text}
@@ -149,7 +154,7 @@ Maintain the authentic dialogue feel with natural speech patterns. Have them bui
     
     async def _generate_audio(self, text, output_path):
         """
-        Convert the podcast script to audio using TTS service
+        Convert the podcast script to audio using TTS service with different voices for each host
         """
         try:
             # First, save the text as a fallback
@@ -163,7 +168,71 @@ Maintain the authentic dialogue feel with natural speech patterns. Have them bui
             if self.tts_api_key:
                 print("Attempting to generate audio using external TTS service...")
                 try:
-                    return await self.tts_service.generate_audio(text, output_path, voice="alloy")
+                    # Parse the script to identify different speakers
+                    david_lines = []
+                    sarah_lines = []
+                    current_speaker = None
+                    current_text = ""
+                    
+                    # Process the script line by line to separate speakers
+                    lines = text.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line.startswith("David:"):
+                            # If we were collecting text for a previous speaker, save it
+                            if current_speaker == "Sarah" and current_text:
+                                sarah_lines.append(current_text.strip())
+                                current_text = ""
+                            
+                            # Start collecting David's text
+                            current_speaker = "David"
+                            current_text = line[len("David:"):].strip() + " "
+                        elif line.startswith("Sarah:"):
+                            # If we were collecting text for a previous speaker, save it
+                            if current_speaker == "David" and current_text:
+                                david_lines.append(current_text.strip())
+                                current_text = ""
+                                
+                            # Start collecting Sarah's text
+                            current_speaker = "Sarah"
+                            current_text = line[len("Sarah:"):].strip() + " "
+                        elif line and current_speaker:  # continuation of current speaker's text
+                            current_text += line + " "
+                    
+                    # Save the last speaker's text
+                    if current_speaker == "David" and current_text:
+                        david_lines.append(current_text.strip())
+                    elif current_speaker == "Sarah" and current_text:
+                        sarah_lines.append(current_text.strip())
+                    
+                    # Generate audio clips for each speaker with appropriate voice
+                    audio_clips = []
+                    for i, text in enumerate(david_lines):
+                        temp_path = f"{output_path}_david_{i}.mp3"
+                        await self.tts_service.generate_audio(text, temp_path, voice="echo")  # Male voice
+                        audio_clips.append({"speaker": "David", "path": temp_path, "index": i})
+                    
+                    for i, text in enumerate(sarah_lines):
+                        temp_path = f"{output_path}_sarah_{i}.mp3"
+                        await self.tts_service.generate_audio(text, temp_path, voice="nova")  # Female voice
+                        audio_clips.append({"speaker": "Sarah", "path": temp_path, "index": i})
+                    
+                    # Sort clips to original conversation order (approximation based on index)
+                    audio_clips.sort(key=lambda x: x["index"])
+                    audio_paths = [clip["path"] for clip in audio_clips]
+                    
+                    # Combine all audio clips
+                    if audio_paths:
+                        self._combine_audio_files(audio_paths, output_path)
+                        # Clean up temporary clips
+                        for path in audio_paths:
+                            if os.path.exists(path):
+                                os.remove(path)
+                        return output_path
+                    else:
+                        print("No audio segments were generated")
+                        return text_output_path
+                        
                 except Exception as tts_error:
                     print(f"TTS generation failed: {str(tts_error)}")
                     # Return the text file path instead of the non-existent mp3

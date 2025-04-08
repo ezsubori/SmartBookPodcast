@@ -39,7 +39,17 @@ class TextToSpeechService:
             raise ValueError(f"Unsupported TTS service: {self.service}")
     
     async def _generate_audio_openai(self, text, output_path, voice="alloy"):
-        """Use OpenAI's TTS API"""
+        """
+        Use OpenAI's TTS API with specified voice
+        
+        Available voices:
+        - alloy: Neutral voice
+        - echo: Male voice
+        - fable: Male voice with a warm tone
+        - onyx: Male voice with gravitas
+        - nova: Female voice
+        - shimmer: Female voice with a clear, bright tone
+        """
         try:
             # OpenAI has a limit on input length, so we need to split the text
             max_chunk_size = 4000
@@ -56,7 +66,7 @@ class TextToSpeechService:
                 payload = {
                     "model": "tts-1",
                     "input": chunk,
-                    "voice": voice,
+                    "voice": voice,  # Will use the specified voice (echo for male, nova for female)
                     "response_format": "mp3"
                 }
                 
