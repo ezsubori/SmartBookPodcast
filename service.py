@@ -80,19 +80,19 @@ class PdfToPodcastService:
                 openai_api_base=self.bedrock_api_base,
             )
             
-            # Prepare template for podcast transformation
-            template = """You are an expert podcaster who creates engaging, conversational content.
+            # Updated template for an executive-appropriate formal tone
+            template = """You are creating a podcast for senior executives, board directors, and C-suite leaders.
 
-Your task is to transform the following PDF content into a natural-sounding podcast script. 
+Your task is to transform the following content into a well-structured, insightful podcast script.
 
 The script should:
-1. Begin with a warm welcome and brief introduction
-2. Present the content in a conversational, engaging tone
-3. Break complex concepts into digestible segments
-4. Include occasional rhetorical questions or hooks to maintain listener interest
-5. End with a summary and conclusion
+1. Open with a concise, professional introduction
+2. Present information in a clear, objective manner with strategic insights
+3. Use precise language and a measured tone appropriate for executive leadership
+4. Provide contextual analysis that connects facts to business implications
+5. Conclude with key takeaways and forward-looking perspectives
 
-Remember, this should sound like people talking, not like someone reading an article.
+The tone should be formal and authoritative, but conversational enough to maintain engagement. Avoid casual language, slang, or overly enthusiastic expressions. Use a measured, thoughtful approach that respects the audience's expertise and time.
 
 PDF CONTENT:
 {text}
@@ -111,24 +111,24 @@ PODCAST SCRIPT:"""
                     result = await chain.ainvoke({"text": chunk})
                     processed_chunks.append(result["text"])
                 elif i == len(chunks) - 1:
-                    # Last chunk gets the conclusion
-                    conclude_template = """Continue the podcast and provide a thoughtful conclusion for this content:
+                    # Updated conclusion template
+                    conclude_template = """Continue the executive podcast with this final section:
                     
 {text}
 
-Conclude the podcast with a summary of key points and a friendly sign-off."""
+Conclude with a summary of strategic implications, key insights for decision-makers, and a professional closing statement. Maintain the formal, measured tone appropriate for senior executives and board directors."""
                     
                     conclude_prompt = PromptTemplate.from_template(conclude_template)
                     conclude_chain = LLMChain(prompt=conclude_prompt, llm=llm)
                     result = await conclude_chain.ainvoke({"text": chunk})
                     processed_chunks.append(result["text"])
                 else:
-                    # Middle chunks continue the narrative
-                    continue_template = """Continue the podcast with the following content:
+                    # Updated middle section template
+                    continue_template = """Continue the executive podcast with the following content:
                     
 {text}
 
-Continue the conversational podcast tone without any introduction or conclusion."""
+Maintain the formal, objective tone appropriate for C-suite leaders and board directors. Focus on strategic implications and business relevance without any introduction or conclusion."""
                     
                     continue_prompt = PromptTemplate.from_template(continue_template)
                     continue_chain = LLMChain(prompt=continue_prompt, llm=llm)
@@ -188,7 +188,7 @@ Continue the conversational podcast tone without any introduction or conclusion.
                         payload = {
                             "model": model,
                             "input": chunk,
-                            "voice_preset": "female_casual",
+                            "voice_preset": "male_formal",  # Changed to male_formal
                             "response_format": "mp3"
                         }
                         
