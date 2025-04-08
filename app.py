@@ -1,11 +1,49 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.openapi.utils import get_openapi
 import uvicorn
 import os
 import uuid
 from service import PdfToPodcastService
 
-app = FastAPI(title="PDF to Podcast API", description="Convert PDF documents to podcast audio")
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     """Lifespan event handler for setup and cleanup."""
+#     # Setup code (if any) can go here
+#     yield
+#     # Cleanup code
+#     import shutil
+#     try:
+#         shutil.rmtree("temp/uploads")
+#         shutil.rmtree("temp/podcasts")
+#     except Exception:
+#         pass
+
+app = FastAPI(
+    title="PDF to Podcast API",
+    description="Convert PDF documents to podcast audio",
+    version="1.0.0",
+    docs_url="/swagger",  # Ensure Swagger UI is accessible at /swagger
+    redoc_url="/redoc",   # ReDoc endpoint
+    openapi_url="/openapi.json",  # OpenAPI schema endpoint
+    #lifespan=lifespan  # Use the lifespan handler
+)
+
+# Optional: Customize the OpenAPI schema
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="PDF to Podcast API",
+        version="1.0.0",
+        description="API for converting PDF documents to podcast audio files.",
+        routes=app.routes,
+    )
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 # Create temp folders if they don't exist
 os.makedirs("temp/uploads", exist_ok=True)
@@ -73,6 +111,10 @@ async def convert_pdf_to_podcast(file: UploadFile = File(...), background_tasks:
             os.remove(pdf_path)
         raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
+@app.get('/hello')
+async def hello_world():
+    return{'hello':'world'}
+
 @app.get("/status/{job_id}")
 async def check_status(job_id: str):
     """Check the status of a podcast conversion job"""
@@ -107,15 +149,6 @@ async def download_podcast(job_id: str):
     
     raise HTTPException(status_code=404, detail="Podcast not found")
 
-@app.on_event("shutdown")
-def cleanup():
-    """Clean up temporary files on shutdown"""
-    import shutil
-    try:
-        shutil.rmtree("temp/uploads")
-        shutil.rmtree("temp/podcasts")
-    except Exception:
-        pass
-
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Direct execution method
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
