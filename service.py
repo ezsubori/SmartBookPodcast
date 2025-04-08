@@ -85,24 +85,25 @@ class PdfToPodcastService:
                 openai_api_base=self.bedrock_api_base,
             )
             
-            # Updated template for a two-host executive podcast format
-            template = """You are creating a podcast for senior executives, board directors, and C-suite leaders. The podcast features TWO hosts having a professional dialogue.
+            # Updated template for a natural, conversational two-host podcast format
+            template = """You are creating a podcast script for a natural-sounding live conversation between two expert hosts. The podcast is targeted at senior executives and board directors, but should sound like a genuine dialogue, not a scripted reading.
 
-Your task is to transform the following content into a well-structured podcast script with two distinct hosts: Host A (the main presenter) and Host B (the analyst/expert).
+Your task is to transform the following content into an engaging conversation between Host A (David) and Host B (Sarah) with the following characteristics:
 
-The script should:
-1. Open with Host A giving a concise, professional introduction, followed by Host B adding context
-2. Structure the content as a dialogue between the hosts, with clear speaker attributions (Host A: / Host B:)
-3. Have Host A focus on presenting key facts and figures, while Host B provides analysis and strategic implications
-4. Include thoughtful transitions and exchanges between hosts that sound natural but remain professional
-5. Conclude with both hosts summarizing key takeaways and forward-looking perspectives
+1. Natural dialogue patterns with realistic speech patterns, including occasional brief pauses, thoughtful considerations, and gentle interruptions where appropriate
+2. Conversational transitions and authentic exchanges that show the hosts are actively listening to each other
+3. Varied sentence structures and speech patterns unique to each host (David is concise and data-focused, Sarah provides strategic analysis and broader implications)
+4. Include natural elements that would appear in actual conversation: brief agreements ("That's right", "I see"), clarifying questions, building on the other's points
+5. Incorporate realistic verbal cues like "you know," "I think," "as you mentioned," that make dialogue sound authentic
 
-The tone should be formal and authoritative, but conversational enough to maintain engagement. Avoid casual language, slang, or overly enthusiastic expressions. Use a measured, thoughtful approach that respects the audience's expertise and time.
+The tone should be authoritative and professional, but conversational and natural - avoid overly formal language that sounds stilted when spoken aloud. The hosts should sound knowledgeable but approachable.
+
+IMPORTANT: Avoid scripted-sounding phrases like "[Pause]" or "[thoughtful tone]" - instead, use natural dialogue patterns that convey these elements implicitly.
 
 PDF CONTENT:
 {text}
 
-PODCAST SCRIPT:"""
+PODCAST CONVERSATION:"""
             
             prompt = PromptTemplate.from_template(template)
             chain = LLMChain(prompt=prompt, llm=llm)
@@ -116,24 +117,24 @@ PODCAST SCRIPT:"""
                     result = await chain.ainvoke({"text": chunk})
                     processed_chunks.append(result["text"])
                 elif i == len(chunks) - 1:
-                    # Updated conclusion template for two hosts
-                    conclude_template = """Continue the executive podcast dialogue with this final section:
+                    # Updated conclusion template for natural conversation
+                    conclude_template = """Continue and conclude the conversation between David and Sarah with this final section:
                     
 {text}
 
-Have both Host A and Host B conclude with a summary of strategic implications and key insights for decision-makers. End with a professional sign-off from both hosts. Maintain the formal, measured tone appropriate for senior executives and board directors."""
+Have them naturally summarize key takeaways and strategic implications as they would in a live discussion. End with a genuine-sounding sign-off that feels unscripted and authentic."""
                     
                     conclude_prompt = PromptTemplate.from_template(conclude_template)
                     conclude_chain = LLMChain(prompt=conclude_prompt, llm=llm)
                     result = await conclude_chain.ainvoke({"text": chunk})
                     processed_chunks.append(result["text"])
                 else:
-                    # Updated middle section template for two hosts
-                    continue_template = """Continue the executive podcast dialogue with the following content:
+                    # Updated middle section template for natural conversation
+                    continue_template = """Continue the natural conversation between David and Sarah discussing the following content:
                     
 {text}
 
-Maintain the conversation between Host A and Host B with the formal, objective tone appropriate for C-suite leaders and board directors. Focus on strategic implications and business relevance without any introduction or conclusion."""
+Maintain the authentic dialogue feel with natural speech patterns. Have them build on each other's points and demonstrate active listening. Keep the focus on strategic implications and executive-level insights while sounding like a genuine conversation."""
                     
                     continue_prompt = PromptTemplate.from_template(continue_template)
                     continue_chain = LLMChain(prompt=continue_prompt, llm=llm)
