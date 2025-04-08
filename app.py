@@ -6,6 +6,7 @@ import uvicorn
 import os
 import uuid
 from service import PdfToPodcastService
+from config import BEDROCK_API_BASE, BEDROCK_API_KEY, OPENAI_API_KEY
 
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):
@@ -49,11 +50,11 @@ app.openapi = custom_openapi
 os.makedirs("temp/uploads", exist_ok=True)
 os.makedirs("temp/podcasts", exist_ok=True)
 
-# Initialize service with Bedrock API endpoint and OpenAI API key for TTS
+# Initialize service with API keys from environment variables
 service = PdfToPodcastService(
-    bedrock_api_base="https://hackfest-bedrock-proxy.diligentoneplatform-dev.com/api/v1",
-    api_key="2ega5d1b34c4258c4b03e6c49ae3f9e1",
-    tts_api_key=os.environ.get("OPENAI_API_KEY")  # Get from environment variable
+    bedrock_api_base=BEDROCK_API_BASE,
+    api_key=BEDROCK_API_KEY,
+    tts_api_key=OPENAI_API_KEY
 )
 
 @app.post("/convert")

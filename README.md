@@ -10,6 +10,15 @@ A web service that converts PDF documents into natural-sounding podcast audio fi
 - **Asynchronous Processing**: Handles large documents through background processing
 - **RESTful API**: Simple HTTP endpoints for file upload, status checking, and downloading
 
+## Prerequisites
+
+1. **Python 3.8+**: Required for running the application
+2. **FFmpeg**: Required for audio processing
+   - **macOS**: Install with Homebrew: `brew install ffmpeg`
+   - **Windows**: Download from [FFmpeg.org](https://ffmpeg.org/download.html) and add to PATH
+   - **Linux**: Install with your package manager, e.g., `sudo apt install ffmpeg`
+3. **OpenAI API Key**: Required for text-to-speech functionality (if using OpenAI's TTS)
+
 ## Installation
 
 1. Clone the repository:
@@ -99,7 +108,8 @@ Update the API configuration in `app.py`:
 ```python
 service = PdfToPodcastService(
     bedrock_api_base="https://your-bedrock-endpoint.com",
-    api_key="your-api-key"
+    api_key="your-bedrock-api-key",
+    tts_api_key="your-openai-api-key"  # Required for audio generation with OpenAI
 )
 ```
 
@@ -109,7 +119,8 @@ For production use, it's recommended to use environment variables:
 import os
 service = PdfToPodcastService(
     bedrock_api_base=os.getenv("BEDROCK_API_BASE"),
-    api_key=os.getenv("BEDROCK_API_KEY")
+    api_key=os.getenv("BEDROCK_API_KEY"),
+    tts_api_key=os.getenv("OPENAI_API_KEY")
 )
 ```
 
@@ -121,6 +132,16 @@ service = PdfToPodcastService(
 - Anthropic Claude 3.5 Sonnet model for text transformation
 - Amazon Titan TTS for speech synthesis
 - FFmpeg for audio processing (required for combining multiple audio files)
+
+## Troubleshooting
+
+### FFmpeg Not Found
+If you see an error like `No such file or directory: 'ffmpeg'`:
+1. Ensure FFmpeg is installed as per the prerequisites
+2. Make sure the ffmpeg executable is in your system PATH
+3. Restart the application after installation
+
+If FFmpeg is not available, the application will still generate podcast scripts but may have issues combining audio files.
 
 ## License
 

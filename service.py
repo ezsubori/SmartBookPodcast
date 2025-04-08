@@ -22,8 +22,8 @@ class PdfToPodcastService:
         """
         self.bedrock_api_base = bedrock_api_base
         self.api_key = api_key
-        #self.tts_api_key = tts_api_key
-        self.tts_api_key = api_key
+        self.tts_api_key = tts_api_key
+        #self.tts_api_key = api_key
         self.tts_service = TextToSpeechService(api_key=tts_api_key)
         
     async def create_podcast(self, pdf_path, output_audio_path):
@@ -203,21 +203,44 @@ Maintain the conversation between Host A and Host B with the formal, objective t
     
     def _combine_audio_files(self, audio_files, output_path):
         """Combine multiple MP3 files into a single file"""
-        # This is a simplified version - in a production environment,
-        # you would likely use a library like pydub to properly combine the audio files
-        import subprocess
-        
-        # Create a file list for ffmpeg
-        with open("filelist.txt", "w") as f:
-            for audio_file in audio_files:
-                f.write(f"file '{audio_file}'\n")
-        
-        # Use ffmpeg to concatenate the files
-        subprocess.run([
-            "ffmpeg", "-f", "concat", "-safe", "0", 
-            "-i", "filelist.txt", "-c", "copy", output_path
-        ], check=True)
-        
-        # Clean up
-        os.remove("filelist.txt")
+        try:
+            import subprocess
+            
+            # Check if ffmpeg is installed
+            try:
+                # Try to execute ffmpeg to see if it's available
+                subprocess.run(["ffmpeg", "-version"], check=True, capture_output=True)
+            except (subprocess.SubprocessError, FileNotFoundError):
+                print("FFmpeg not found. Please install FFmpeg to enable audio combination.")
+                # Fall back to using just the first audio chunk
+                if audio_files and os.path.exists(audio_files[0]):
+                    import shutil
+                    shutil.copy(audio_files[0], output_path)
+                    return
+                else:
+                    raise Exception("FFmpeg not found and no audio files available")
+            
+            # Create a file list for ffmpeg
+            with open("filelist.txt", "w") as f:
+                for audio_file in audio_files:
+                    f.write(f"file '{audio_file}'\n")
+            
+            # Use ffmpeg to concatenate the files
+            subprocess.run([
+                "ffmpeg", "-f", "concat", "-safe", "0", 
+                "-i", "filelist.txt", "-c", "copy", output_path
+            ], check=True)
+            
+            # Clean up
+            if os.path.exists("filelist.txt"):
+                os.remove("filelist.txt")
+                
+        except Exception as e:
+            print(f"Error combining audio files: {str(e)}")
+            # Fall back to using just the first audio chunk if available
+            if audio_files and os.path.exists(audio_files[0]):
+                import shutil
+                shutil.copy(audio_files[0], output_path)
+            else:
+                raise Exception(f"Failed to combine audio files: {str(e)}")
 
