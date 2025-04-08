@@ -80,17 +80,17 @@ class PdfToPodcastService:
                 openai_api_base=self.bedrock_api_base,
             )
             
-            # Updated template for an executive-appropriate formal tone
-            template = """You are creating a podcast for senior executives, board directors, and C-suite leaders.
+            # Updated template for a two-host executive podcast format
+            template = """You are creating a podcast for senior executives, board directors, and C-suite leaders. The podcast features TWO hosts having a professional dialogue.
 
-Your task is to transform the following content into a well-structured, insightful podcast script.
+Your task is to transform the following content into a well-structured podcast script with two distinct hosts: Host A (the main presenter) and Host B (the analyst/expert).
 
 The script should:
-1. Open with a concise, professional introduction
-2. Present information in a clear, objective manner with strategic insights
-3. Use precise language and a measured tone appropriate for executive leadership
-4. Provide contextual analysis that connects facts to business implications
-5. Conclude with key takeaways and forward-looking perspectives
+1. Open with Host A giving a concise, professional introduction, followed by Host B adding context
+2. Structure the content as a dialogue between the hosts, with clear speaker attributions (Host A: / Host B:)
+3. Have Host A focus on presenting key facts and figures, while Host B provides analysis and strategic implications
+4. Include thoughtful transitions and exchanges between hosts that sound natural but remain professional
+5. Conclude with both hosts summarizing key takeaways and forward-looking perspectives
 
 The tone should be formal and authoritative, but conversational enough to maintain engagement. Avoid casual language, slang, or overly enthusiastic expressions. Use a measured, thoughtful approach that respects the audience's expertise and time.
 
@@ -111,24 +111,24 @@ PODCAST SCRIPT:"""
                     result = await chain.ainvoke({"text": chunk})
                     processed_chunks.append(result["text"])
                 elif i == len(chunks) - 1:
-                    # Updated conclusion template
-                    conclude_template = """Continue the executive podcast with this final section:
+                    # Updated conclusion template for two hosts
+                    conclude_template = """Continue the executive podcast dialogue with this final section:
                     
 {text}
 
-Conclude with a summary of strategic implications, key insights for decision-makers, and a professional closing statement. Maintain the formal, measured tone appropriate for senior executives and board directors."""
+Have both Host A and Host B conclude with a summary of strategic implications and key insights for decision-makers. End with a professional sign-off from both hosts. Maintain the formal, measured tone appropriate for senior executives and board directors."""
                     
                     conclude_prompt = PromptTemplate.from_template(conclude_template)
                     conclude_chain = LLMChain(prompt=conclude_prompt, llm=llm)
                     result = await conclude_chain.ainvoke({"text": chunk})
                     processed_chunks.append(result["text"])
                 else:
-                    # Updated middle section template
-                    continue_template = """Continue the executive podcast with the following content:
+                    # Updated middle section template for two hosts
+                    continue_template = """Continue the executive podcast dialogue with the following content:
                     
 {text}
 
-Maintain the formal, objective tone appropriate for C-suite leaders and board directors. Focus on strategic implications and business relevance without any introduction or conclusion."""
+Maintain the conversation between Host A and Host B with the formal, objective tone appropriate for C-suite leaders and board directors. Focus on strategic implications and business relevance without any introduction or conclusion."""
                     
                     continue_prompt = PromptTemplate.from_template(continue_template)
                     continue_chain = LLMChain(prompt=continue_prompt, llm=llm)
