@@ -40,7 +40,7 @@ class TextToSpeechService:
     
     async def _generate_audio_openai(self, text, output_path, voice="alloy"):
         """
-        Use OpenAI's TTS API with specified voice
+        Use OpenAI's TTS API with specified voice and improved naturalness
         
         Available voices:
         - alloy: Neutral voice
@@ -63,11 +63,24 @@ class TextToSpeechService:
                     "Content-Type": "application/json"
                 }
                 
+                # Use TTS-1-HD for higher quality, more natural speech
+                model = "tts-1-hd"
+                
+                # Enhance the text with vocal dynamics
+                enhanced_text = self._enhance_speech_dynamics(chunk, voice)
+                
+                # Adjust voice settings for more expressiveness
+                # The voice_settings parameter isn't yet available in the API,
+                # so we modify the text itself to achieve similar effects
+                
                 payload = {
-                    "model": "tts-1",
-                    "input": chunk,
-                    "voice": voice,  # Will use the specified voice (echo for male, nova for female)
-                    "response_format": "mp3"
+                    "model": model,
+                    "input": enhanced_text,
+                    "voice": voice,
+                    "response_format": "mp3",
+                    # Speed affects pitch somewhat - slightly slower for deeper voices,
+                    # faster for higher pitch variation
+                    "speed": 0.92 if voice in ["onyx"] else 1.08 if voice == "nova" else 1.0
                 }
                 
                 response = requests.post(
@@ -193,3 +206,86 @@ class TextToSpeechService:
             # If combining fails, just use the first file
             if audio_files and os.path.exists(audio_files[0]):
                 os.rename(audio_files[0], output_path)
+    
+    def _enhance_natural_speech(self, text, voice):
+        """Add natural speech elements to improve fluency"""
+        # For British accent (echo voice), add some British speech patterns
+        if voice == "echo":
+            # Add slight pauses with commas
+            text = text.replace(". ", ", right. ")
+            text = text.replace("? ", "? Well, ")
+            
+            # Add British filler words and expressions
+            text = text.replace("I think ", "I rather think ")
+            text = text.replace("That's good", "That's quite good")
+            
+            # Add SSML for more control if using a service that supports it
+            # Since OpenAI doesn't support SSML yet, we'll use text modifications
+            
+        # For female voice (nova), add different speech patterns
+        elif voice == "nova":
+            # Different filler patterns for Sarah
+            text = text.replace("I think", "I believe")
+            text = text.replace("good point", "excellent point")
+        
+        return text
+
+    def _enhance_speech_dynamics(self, text, voice):
+        """
+        Enhance text to create more natural speech patterns and pitch variation
+        """
+        # Add punctuation and formatting that will create more dynamic speech
+        
+        # Add question marks to create rising intonation
+        text = text.replace(", right.", ", right?")
+        text = text.replace(", correct.", ", correct?")
+        
+        # Use exclamation points sparingly for emphasis
+        text = text.replace(" significant increase", " significant increase!")
+        text = text.replace(" remarkable growth", " remarkable growth!")
+        
+        # Add commas and ellipses for pacing and emphasis
+        text = text.replace(". And", ". ...And")
+        text = text.replace(". But", ". ...But")
+        
+        # Create more natural pauses with commas
+        text = text.replace(" however ", ", however, ")
+        text = text.replace(" therefore ", ", therefore, ")
+        
+        # Add emphasis markers that affect pitch in TTS
+        if "increased by" in text:
+            text = text.replace("increased by", "*increased* by")
+        
+        if "percent" in text:
+            text = text.replace("percent", "*percent*")
+        
+        # Voice-specific enhancements
+        if voice == "onyx":  # David's British voice
+            # Add British expressions and emphasis patterns
+            text = text.replace("That's right", "That's absolutely right")
+            text = text.replace("very good", "*very* good")
+            text = text.replace("I agree", "I quite agree")
+            text = text.replace("looking at", "looking *carefully* at")
+            # Add pauses where a British speaker might pause
+            text = text.replace(". What", ". ...What")
+            text = text.replace(". Now,", ". ...Now,")
+        
+        elif voice == "nova":  # Sarah's voice
+            # Add patterns that create higher pitch variation
+            text = text.replace("interesting", "*really* interesting")
+            text = text.replace("important", "*critically* important")
+            text = text.replace("strategic", "*strategic*")
+            # Create questioning intonation in analysis
+            text = text.replace("we should consider", "shouldn't we consider")
+            text = text.replace("this suggests", "this suggests, don't you think")
+            # Add vocal fry markers at ends of statements
+            text = text.replace(". The", "... The")
+        
+        # Remove any double spaces or repeated punctuation
+        while "  " in text:
+            text = text.replace("  ", " ")
+        text = text.replace("?..", "?.")
+        text = text.replace("!..", "!.")
+        text = text.replace("...", "...")
+        
+        return text

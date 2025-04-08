@@ -208,13 +208,17 @@ Maintain the authentic dialogue feel with natural speech patterns. Have them bui
                     # Generate audio clips for each speaker with appropriate voice
                     audio_clips = []
                     for i, text in enumerate(david_lines):
+                        # Pre-process David's text to enhance British accent patterns
+                        british_text = self._add_british_elements(text)
                         temp_path = f"{output_path}_david_{i}.mp3"
-                        await self.tts_service.generate_audio(text, temp_path, voice="echo")  # Male voice
+                        # Use 'onyx' voice for British male accent with gravitas
+                        await self.tts_service.generate_audio(british_text, temp_path, voice="onyx")
                         audio_clips.append({"speaker": "David", "path": temp_path, "index": i})
                     
                     for i, text in enumerate(sarah_lines):
                         temp_path = f"{output_path}_sarah_{i}.mp3"
-                        await self.tts_service.generate_audio(text, temp_path, voice="nova")  # Female voice
+                        # Nova is a good female voice with clarity
+                        await self.tts_service.generate_audio(text, temp_path, voice="nova")
                         audio_clips.append({"speaker": "Sarah", "path": temp_path, "index": i})
                     
                     # Sort clips to original conversation order (approximation based on index)
@@ -313,4 +317,29 @@ Maintain the authentic dialogue feel with natural speech patterns. Have them bui
                 shutil.copy(audio_files[0], output_path)
             else:
                 raise Exception(f"Failed to combine audio files: {str(e)}")
+    
+    def _add_british_elements(self, text):
+        """Add British speech patterns to make David sound more British"""
+        replacements = [
+            ("Let's discuss", "Shall we discuss"),
+            ("Let's look at", "Let's take a look at"),
+            ("I think", "I rather think"),
+            ("That's good", "That's quite good"),
+            ("That is", "That's"),
+            ("It is", "It's"),
+            ("absolutely", "absolutely brilliant"),
+            ("interesting", "quite interesting"),
+            ("thank you", "thank you very much"),
+            ("Thanks", "Thanks ever so much"),
+        ]
+        
+        for original, replacement in replacements:
+            # Only replace some instances to maintain natural speech patterns
+            if original in text and text.count(original) > 1:
+                # Replace about half the instances
+                instances = text.count(original)
+                for _ in range(instances // 2):
+                    text = text.replace(original, replacement, 1)
+        
+        return text
 
